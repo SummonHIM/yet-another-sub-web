@@ -28,6 +28,7 @@ import { SwitchTheme } from "@/components/SwitchTheme";
 
 import { createSub } from "@/app/hooks/createSub";
 import { createShortSub } from "@/app/hooks/createShortSub";
+import { webSafeBase64Encode } from "./hooks/base64";
 
 const backends = process.env.NEXT_PUBLIC_BACKENDS?.split('|') ?? ["http://127.0.0.1:25500/sub?"]
 const initialParams: Params = {
@@ -100,6 +101,54 @@ export default function Home() {
     const url = shortSubLink || subLink;
     window.location.href = `clash://install-config?url=${encodeURIComponent(url)}`;
   }, [params.subLink || params.shortSubLink]);
+
+  const createImportScheme = useCallback(() => {
+    const { subLink, shortSubLink, target } = params;
+    if (!subLink) return toast.error('请在生成订阅链接后再试');
+
+    const url = shortSubLink || subLink;
+    let importScheme: string
+
+    switch (cfg.clients[target]) {
+      case "clash":
+      case "clashr":
+        // https://www.clashverge.dev/guide/url_schemes.html
+        // https://github.com/MetaCubeX/ClashMetaForAndroid?tab=readme-ov-file#automation
+        importScheme = `clash://install-config?url=${encodeURIComponent(url)}`;
+        break;
+      case "quan":
+        // https://github.com/crossutility/Quantumult/blob/master/quantumult-uri-scheme.md
+        importScheme = `quantumult://configuration?server=${webSafeBase64Encode(url)}`;
+        break;
+      case "quanx":
+        // https://github.com/crossutility/Quantumult-X/blob/master/url-scheme.md
+        const remote_resource = { "server_remote": [ url ] };
+        importScheme = `quantumult-x:///update-configuration?remote-resource=${encodeURIComponent(JSON.stringify(remote_resource))}`;
+        break;
+      case "loon":
+        // https://nsloon.app/docs/Scheme/#%E5%AE%89%E8%A3%85%E8%BF%9C%E7%AB%AF%E9%85%8D%E7%BD%AE%E6%96%87%E4%BB%B6
+        importScheme = `loon://import?sub=${encodeURIComponent(url)}`;
+        break;
+      case "surfboard":
+        // https://getsurfboard.com/docs/deeplink
+        importScheme = `surfboard:///install-config?url=${encodeURIComponent(url)}`;
+        break;
+      case "surge&ver=2":
+      case "surge&ver=3":
+      case "surge&ver=4":
+        // https://manual.nssurge.com/others/url-scheme.html
+        importScheme = `surge:///install-config?url=${encodeURIComponent(url)}`;
+        break;
+      case "singbox":
+        // https://sing-box.sagernet.org/clients/general/#profile
+        importScheme = `sing-box://import-remote-profile?url=${encodeURIComponent(url)}`;
+        break;
+      default:
+        return toast.error('不受支持的客户端');
+    }
+
+    window.location.href = importScheme;
+  }, [params.subLink || params.shortSubLink || params.target])
 
   return (
     <div className="w-full p-4 flex flex-col justify-center items-center gap-3">
@@ -222,25 +271,6 @@ export default function Home() {
           </Tabs>
         </CardBody>
         <CardFooter className="flex flex-col gap-5 pt-4">
-          <TextCell
-            label="定制订阅"
-            value={params.subLink}
-            placeholder="请先输入订阅链接和选择客户端后，点击生成订阅链接"
-          />
-          <TextCell
-            label="订阅短链"
-            value={params.shortSubLink}
-            placeholder="生成订阅链接后，点击生成短链"
-          />
-          {process.env.NODE_ENV === 'development' ? (
-            <Textarea
-              isReadOnly
-              variant="bordered"
-              label="测试环境"
-              className="w-full"
-              value={JSON.stringify(params)}
-            />
-          ) : null}
           <div
             className="w-2/3 flex flex-col gap-3"
           >
@@ -255,12 +285,37 @@ export default function Home() {
               startContent={<Icon icon="solar:link-minimalistic-2-linear" />}
               onPress={createShortSubscription}
             >生成短链接</Button>
-            <Button
-              color="default"
-              startContent={<Icon icon="solar:cloud-download-linear" />}
-              onPress={importClash}
-            >导入至 Clash</Button>
           </div>
+          <TextCell
+            label="定制订阅"
+            value={params.subLink}
+            placeholder="请先输入订阅链接和选择客户端后，点击生成订阅链接"
+          />
+          <TextCell
+            label="订阅短链"
+            value={params.shortSubLink}
+            placeholder="生成订阅链接后，点击生成短链"
+          />
+          {params.shortSubLink || params.subLink ? (
+            <div
+              className="w-2/3 flex flex-col gap-3"
+            >
+              <Button
+                color="default"
+                startContent={<Icon icon="solar:cloud-download-linear" />}
+                onPress={createImportScheme}
+              >导入至 {params.target}</Button>
+            </div>
+          ) : null}
+          {process.env.NODE_ENV === 'development' ? (
+            <Textarea
+              isReadOnly
+              variant="bordered"
+              label="测试环境"
+              className="w-full"
+              value={JSON.stringify(params)}
+            />
+          ) : null}
         </CardFooter>
       </Card>
       <p className="text-bold text-sm text-center">
