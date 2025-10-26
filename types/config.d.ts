@@ -36,4 +36,6 @@ interface Params {
     append_type: boolean;
     emoji: boolean;
     list: boolean;
+    importBtn: boolean
+    importBtnText: string
 };

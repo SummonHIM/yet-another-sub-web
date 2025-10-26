@@ -48,6 +48,8 @@ const initialParams: Params = {
   append_type: false,
   emoji: false,
   list: false,
+  importBtn: false,
+  importBtnText: "未知客户端"
 };
 
 export default function Home() {
@@ -66,13 +68,25 @@ export default function Home() {
 
   const [params, setParams] = useState(initialParams)
 
+  const checkImportScheme = () => {
+    const target = cfg.clients[params.target as keyof typeof cfg.clients]
+    const allowedTargets = new Set([
+      'clash', 'clashr', 'quan', 'quanx', 'loon', 'surfboard',
+      'surge&ver=2', 'surge&ver=3', 'surge&ver=4', 'singbox'
+    ])
+    return allowedTargets.has(target)
+  }
+
   const createSubscription = useCallback(() => {
     try {
       const subLink = createSub(params)
+      const importBtn = checkImportScheme()
+      const importBtnText = params.target
+
       copy(subLink)
       toast.success('定制订阅已复制到剪贴板')
 
-      setParams(prevParams => ({ ...prevParams, subLink }))
+      setParams(prevParams => ({ ...prevParams, subLink, importBtn, importBtnText }))
     } catch (e) {
       toast.error((e as Error).message)
     }
@@ -109,7 +123,7 @@ export default function Home() {
     const url = shortSubLink || subLink;
     let importScheme: string
 
-    switch (cfg.clients[target]) {
+    switch (cfg.clients[target as keyof typeof cfg.clients]) {
       case "clash":
       case "clashr":
         // https://www.clashverge.dev/guide/url_schemes.html
@@ -296,7 +310,7 @@ export default function Home() {
             value={params.shortSubLink}
             placeholder="生成订阅链接后，点击生成短链"
           />
-          {params.shortSubLink || params.subLink ? (
+          {params.importBtn && (params.shortSubLink || params.subLink) ? (
             <div
               className="w-2/3 flex flex-col gap-3"
             >
@@ -304,7 +318,7 @@ export default function Home() {
                 color="default"
                 startContent={<Icon icon="solar:cloud-download-linear" />}
                 onPress={createImportScheme}
-              >导入至 {params.target}</Button>
+              >导入至 {params.importBtnText}</Button>
             </div>
           ) : null}
           {process.env.NODE_ENV === 'development' ? (
